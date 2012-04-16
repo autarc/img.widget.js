@@ -92,29 +92,40 @@
 
 
 
-// // IIFE / imgex
-var imgex = function(){
+
+// img module
+var img = function(){
+
 
 	(function init() {
+
+
+		var stack = widget.type || [ grey ];
+
+		load( widget.image, stack.reverse() );
+
+	}());
+
+
+	function load( src, stack ){
 
 		var img = new Image();
 
 		img.onload = function(){
 
-			createGrey(img);
+			change( img, stack);
 		};
 
-		img.src = widget.image;
-
-	}());
-
+		img.src = src;
+	}
 
 
-
-		function createGrey ( img ) {
+		function change( img , stack ){
 
 			// canvas variables
-			var cvs = document.createElement('canvas'),
+			var edit = stack.pop(),
+
+				cvs = document.createElement('canvas'),
 				ctx = cvs.getContext('2d'),
 
 				width = img.width,
@@ -126,102 +137,134 @@ var imgex = function(){
 			ctx.drawImage( img, 0, 0 );
 
 
-			// image variables
+			// // image variables
 			var image = ctx.getImageData( 0, 0, width, height),
-				pixels = image.data,
-				length = pixels.length,
-				pos, r, g , b;
+
+				pixels = width * height,
+
+				data = image.data,
+				length = data.length,
+
+				pos, r, g, b, c;
 
 
-			for( var y = 0; y < height; y++ ) {
-				for( var x = 0; x < width; x++ ) {
+			while(--pixels){
 
-					pos = (y * width + x) * 4,
-					r = pixels[pos+0],
-					g = pixels[pos+1],
-					b = pixels[pos+2];
+				pos = pixels * 4;
 
-					pixels[pos+0] =	pixels[pos+1] =	pixels[pos+2] = (r + g + b) / 3;
-				}
+				r = data[ pos    ];
+				g = data[ pos + 1];
+				b = data[ pos + 2];
+				a = data[ pos + 3];
+
+				c = edit( r, g, b, a);
+
+				data[pos  ] = c[0];
+				data[pos+1] = c[1];
+				data[pos+2] = c[2];
+				data[pos+3] = c[3];
 			}
 
-			// writing the pixels data back
+			// // writing the pixels data back
 			image.data = pixels;
 			ctx.putImageData( image, 0,0,0,0, width, height);
 
-			// append
-			append( img, cvs.toDataURL() );
+			url = cvs.toDataURL();
+
+			if( !stack.length ){
+
+				append( img, url );
+
+			} else {
+
+				load( url, stack);
+			}
 		}
 
 
-			// creating the elements here instead of using innerhtml !
-			function append ( img , greyURL ){
+		function grey( r , g , b , a ) {
 
-				widget.style( '.widget-imgex-wrapper', {
+			r = g = b = (r + g + b) / 3;
 
-					display		: 'inline-block',
-					position	: 'relativ'
-				});
-
-
-				var images = {
-
-					position	: 'absolute',
-					width		: (widget.width) ? widget.width + 'px' : '',
-					height		: (widget.height) ? widget.height + 'px' : '',
-					'border-radius': 999999999 + 'px',
-					transition	: 'opacity 1s ease-in-out',
-					'box-shadow' : '1px 1px 2px 2px #000'
-				};
-
-
-				widget.style( '.widget-imgex-color', images );
-
-				widget.style( '.widget-imgex-grey', images );
-
-				widget.style( '.widget-imgex-grey:hover', {
-					opacity	: 0
-				});
-
-
-				var bar = {
-
-					position	: 'absolute'
-
-				};
+			return [ r , g , b , a ];
+		}
 
 
 
-				widget.style( '.widget-imgex-left', bar );
+		// creating the elements here instead of using innerhtml !
+		function append ( img , modified ){
 
-				widget.style( '.widget-imgex-right', bar );
+			widget.style( '.widget-imgex-wrapper', {
 
-
-
-				var container = document.createElement('div'),
-
-					link = (widget.href || widget.link) ? 'href="' + (widget.href || widget.link) + '"' : '',
-
-					text = (widget.text || widget.title) ?  (widget.text || widget.title) : '',
-					left = text.substr(0, text.length/2),
-					right = text.substr(text.length/2);
-
-				container.classList.add('widget-imgex');
+				display		: 'inline-block',
+				position	: 'relativ'
+			});
 
 
-				container.innerHTML =	'<div class="widget-imgex-wrapper">\
-											<a ' + link + '>\
-												<img src="' + img.src +'" class="widget-imgex-color" >\
-												<img src="' + greyURL +'" class="widget-imgex-grey" >\
-												<div class="widget-imgex-left">' + left + '</div>\
-												<div class="widget-imgex-right">' + right + '</div>\
-											</a>\
-										</div>';
+			var width = (widget.width) ? widget.width : img.width,
+				height = (widget.height) ? widget.height : img.height,
+				min = ( width < height) ? width : height;
 
-				document.body.appendChild( container );
-			}
+			var images = {
+
+				position	: 'absolute',
+				width		: min + 'px',
+				height		: min + 'px',
+				'border-radius': 999999999 + 'px',
+				transition	: 'opacity 0.5s ease-in-out',
+				'box-shadow' : '-1px -1px 2px 2px #000,\
+								1px -1px 2px 2px #000,\
+								-1px 1px 2px 2px #000,\
+								1px  1px 2px 2px #000'
+			};
+
+
+			widget.style( '.widget-imgex-color', images );
+
+			widget.style( '.widget-imgex-grey', images );
+
+			widget.style( '.widget-imgex-grey:hover', {
+
+				opacity	: 0
+			});
+
+
+			var bar = {
+
+				position	: 'absolute'
+			};
+
+
+
+			widget.style( '.widget-imgex-left', bar );
+
+			widget.style( '.widget-imgex-right', bar );
+
+
+
+			var container = document.createElement('div'),
+
+				link = (widget.href || widget.link) ? 'href="' + (widget.href || widget.link) + '"' : '',
+
+				text = (widget.text || widget.title) ?  (widget.text || widget.title) : '',
+				left = text.substr(0, text.length/2),
+				right = text.substr(text.length/2);
+
+			container.classList.add('widget-imgex');
+
+
+			container.innerHTML =	'<div class="widget-imgex-wrapper">\
+										<a ' + link + '>\
+											<img src="' + img.src +'" class="widget-imgex-color" >\
+											<img src="' + modified +'" class="widget-imgex-grey" >\
+											<div class="widget-imgex-left">' + left + '</div>\
+											<div class="widget-imgex-right">' + right + '</div>\
+										</a>\
+									</div>';
+
+			document.body.appendChild( container );
+		}
 };
 
-
-// widget - imgex
-widget ( imgex );
+// widget
+widget ( img);
